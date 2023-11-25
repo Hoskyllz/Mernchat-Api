@@ -36,9 +36,36 @@ app.use(
   })
 );
 
+async function getUserDataFromRequest(res) {
+  return new Promise((resolve, reject) => {
+        const token = req.cookies?.token;
+  if (token) {
+    jwt.verify(token, process.env.JWT_SECRET, (err, userData) => {
+      if (err) throw err;
+      resolve(userData)
+    });
+  } else {
+    reject ('no token')
+  }
+  })
+
+}
+
 app.get("/test", (req, res) => {
   res.send("Test ok");
 });
+
+app.get('/messages/:userId', async(req,res) => {
+  // res.json(res.params)
+  const { userId } = req.params
+  const userData = await getUserDataFromRequest(req)
+  const ourUserId = userData.userId
+  const messages = await Message.find({
+    sender: { $in: [userId,ourUserId]},
+    recipient: {$in:[userId,ourUserId]}
+  }).sort({ createdAt: 1 })
+  res.json(messages)
+})
 
 app.get("/api/profile", (req, res) => {
   const token = req.cookies?.token;
@@ -146,7 +173,7 @@ wss.on("connection", (connection, req) => {
           text,
           sender: connection.userId,
           recipient,
-          id: messageDoc._id,
+          _id: messageDoc._id,
         })))
     }
     // console.log(messageData);
